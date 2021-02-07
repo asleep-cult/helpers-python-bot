@@ -2,8 +2,47 @@ import aiohttp
 import constants
 import random
 from snakecord.message import Embed
+from snakecord.utils import JsonStructure, JsonField
 
 commands = constants.commands
+
+
+class RedditPost(JsonStructure):
+    __json_fields__ = {
+        'subreddit': JsonField('subreddit'),
+        'selftext': JsonField('selftext'),
+        'author_fullname': JsonField('author_fullname'),
+        'title': JsonField('title'),
+        'subreddit_name_prefixed': JsonField('subreddit_name_prefixed'),
+        'downs': JsonField('downs'),
+        'ups': JsonField('ups'),
+        'upvote_ratio': JsonField('upvote_ratio'),
+        'total_awards_received': JsonField('total_awards_received'),
+        'over_18': JsonField('over_18'),
+        'thumbnail': JsonField('thumbnail'),
+        'edited': JsonField('edited'),
+        'post_hint': JsonField('post_hint'),
+        'permalink': JsonField('permalink'),
+        'url': JsonField('url'),
+        'num_comments': JsonField('num_comments')
+    }
+
+    subreddit: str
+    selftext: str
+    author_fullname: str
+    title: str
+    subreddit_name_prefixed: str
+    downs: int
+    ups: int
+    upvote_ratio: float
+    total_awards_received: int
+    over_18: bool
+    thumbnail: str
+    edited: bool
+    post_hint: str
+    permalink: str
+    url: str
+    num_comments: int
 
 
 class RedditClientError(Exception):
@@ -44,17 +83,48 @@ async def reddit(message, subreddit, post_filter='new'):
     data = await client.request(subreddit, post_filter)
     await client.close()
 
-    # Yes, I know this is terrible. I'll make a class for it.
-    post = random.choice(data['data']['children'])['data']
-    embed = Embed(title=post['title'], color=constants.BLUE, url=post['url'])
-    embed.set_image(url=post['url'])
-    description = [
-        ':arrow_up: **%s**' % post.get('ups', 'N/A'),
-        ':arrow_down: **%s**' % post.get('downs', 'N/A')
-    ]
+    try:
+        post = random.choice(data['data']['children'])['data']
+    except (IndexError, KeyError):
+        await message.channel.send('Unable to parse that response')
+        return
+    post = RedditPost.unmarshal(post)
 
-    if post.get('edited', False):
-        description.append('edited')
-    embed.description = '\n'.join(description)
+    if post.over_18 and not message.channel.nsfw:
+        await message.channel.send(
+            'That post is NSFW silly... try in an NSFW channel'
+        )
+        return
+
+    embed = Embed(
+        title=post.title,
+        color=constants.BLUE,
+        url='%s%s' % (RedditClient.BASE_URL, post.permalink),
+        description=post.selftext
+    )
+    embed.set_author(name=post.author_fullname, icon_url=post.thumbnail)
+    embed.description = (
+        ':arrow_up: **%s** '
+        ':arrow_down: **%s** '
+        '(%s%%)\n'
+        '**edited**: %s\n'
+        '**nsfw**: %s\n'
+        ':trophy: **%s**\n'
+        ':speech_balloon: **%s**' % (
+            post.ups, post.downs, post.upvote_ratio * 100,
+            str(post.edited).lower(), str(post.over_18).lower(),
+            post.total_awards_received, post.num_comments
+        )
+    )
+
+    if post.post_hint == 'image':
+        embed.set_image(url=post.url)
+    elif post.post_hint == 'link':
+        trunc = post.url[:40]
+        embed.description += '\n\n**[%s...](%s)**' % (trunc, post.url)
+    elif post.post_hint is None:
+        trunc = post.selftext[:len(embed.description) -
+                                min((len(post.selftext), 1500))] # noqa
+        embed.description += '\n\n' + trunc + '...'
 
     await message.channel.send(embed=embed)
