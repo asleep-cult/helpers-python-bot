@@ -11,7 +11,7 @@ class RedditPost(JsonStructure):
     __json_fields__ = {
         'subreddit': JsonField('subreddit'),
         'selftext': JsonField('selftext'),
-        'author_fullname': JsonField('author_fullname'),
+        'author': JsonField('author'),
         'title': JsonField('title'),
         'subreddit_name_prefixed': JsonField('subreddit_name_prefixed'),
         'downs': JsonField('downs'),
@@ -80,8 +80,18 @@ async def reddit(message, subreddit, post_filter='new'):
         subreddit = subreddit[2:]
 
     client = RedditClient()
-    data = await client.request(subreddit, post_filter)
-    await client.close()
+    try:
+        data = await client.request(subreddit, post_filter)
+    except RedditClientError as e:
+        await message.channel.send(
+            'Sorry, that request failed `Status Code: %s`' % e.status_code
+        )
+        return
+    except aiohttp.ClientError:
+        await message.channel.send('Sorry, that request failed')
+        return
+    finally:
+        await client.close()
 
     try:
         post = random.choice(data['data']['children'])['data']
@@ -102,16 +112,15 @@ async def reddit(message, subreddit, post_filter='new'):
         url='%s%s' % (RedditClient.BASE_URL, post.permalink),
         description=post.selftext
     )
-    embed.set_author(name=post.author_fullname, icon_url=post.thumbnail)
+    embed.set_author(name=post.author)
     embed.description = (
-        ':arrow_up: **%s** '
-        ':arrow_down: **%s** '
+        ':arrow_up: :arrow_down: **%s** '
         '(%s%%)\n'
         '**edited**: %s\n'
         '**nsfw**: %s\n'
         ':trophy: **%s**\n'
         ':speech_balloon: **%s**' % (
-            post.ups, post.downs, post.upvote_ratio * 100,
+            post.ups, post.upvote_ratio * 100,
             str(post.edited).lower(), str(post.over_18).lower(),
             post.total_awards_received, post.num_comments
         )
@@ -119,12 +128,13 @@ async def reddit(message, subreddit, post_filter='new'):
 
     if post.post_hint == 'image':
         embed.set_image(url=post.url)
-    elif post.post_hint == 'link':
+    elif post.thumbnail is not None and post.thumbnail.startswith('http'):
+        embed.set_image(url=post.thumbnail)
+    if post.post_hint in ('link', 'rich:video'):
         trunc = post.url[:40]
         embed.description += '\n\n**[%s...](%s)**' % (trunc, post.url)
-    elif post.post_hint is None:
-        trunc = post.selftext[:len(embed.description) -
-                                min((len(post.selftext), 1500))] # noqa
+    elif post.post_hint in (None, 'self'):
+        trunc = post.selftext[:min((len(post.selftext), 1000))]
         embed.description += '\n\n' + trunc + '...'
 
     await message.channel.send(embed=embed)

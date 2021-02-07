@@ -21,12 +21,13 @@ async def ping(message):
 async def server(message):
     embed = Embed(title=message.guild.name, color=constants.BLUE)
     embed.set_thumbnail(ICON_URL % (message.guild.id, message.guild.icon))
-    description = []
-    description.append(
-        '**Members**: {}'.format(len(message.guild.members))
+    embed.description = (
+        'Members: %s\n'
+        'Emojis: %s\n'
+        'Roles: %s\n' % (
+            len(message.guild.members),
+            len(message.guild.emojis),
+            len(message.guild.roles)
+        )
     )
-    description.append(
-        '**Emojis**: {}'.format(len(message.guild.emojis))
-    )
-    embed.description = '\n'.join(description)
     await message.channel.send(embed=embed)

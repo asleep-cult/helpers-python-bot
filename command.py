@@ -8,14 +8,6 @@ class Command:
         await self.func(*args)
 
 
-def iterable(o):
-    try:
-        iter(o)
-        return True
-    except TypeError:
-        return False
-
-
 class CommandTable:
     def __init__(self, prefix, ignore_case=False, sep=' '):
         assert sep, 'Empty seperator'
@@ -40,7 +32,7 @@ class CommandTable:
     def remove_command(self, command):
         self.commands.pop(command.name)
         for alias in command.aliases:
-            self.command.pop(alias)
+            self.commands.pop(alias)
 
     def _check_prefix(self, string, prefix):
         if not isinstance(prefix, str):
@@ -54,7 +46,7 @@ class CommandTable:
         if callable(self.prefix):
             prefix = self.prefix(message)
 
-        if not isinstance(prefix, str) and iterable(prefix):
+        if not isinstance(prefix, str):
             for prefix in prefix:
                 if self._check_prefix(message.content, prefix):
                     return prefix
