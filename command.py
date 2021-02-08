@@ -1,3 +1,22 @@
+from snakecord import Message, Embed
+
+
+class CommandError(Exception):
+    def __init__(
+        self,
+        msg: str,
+        message: Message,
+        should_send: bool = True
+    ) -> None:
+        self.msg = msg
+        self.message = message
+        self.should_send = should_send
+
+    async def send(self):
+        embed = Embed(title='**Error**', description=self.msg)
+        await self.message.channel.send(embed=embed)
+
+
 class Command:
     def __init__(self, func, name=None):
         self.name = name or func.__name__
@@ -5,7 +24,10 @@ class Command:
         self.func = func
 
     async def call(self, *args):
-        await self.func(*args)
+        try:
+            await self.func(*args)
+        except CommandError as e:
+            await e.send()
 
 
 class CommandTable:

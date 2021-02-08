@@ -1,7 +1,9 @@
 import aiohttp
 import constants
+import command
 import random
-from snakecord.message import Embed
+from typing import Optional
+from snakecord import Message, Embed
 from snakecord.utils import JsonStructure, JsonField
 
 commands = constants.commands
@@ -57,10 +59,15 @@ class RedditClient:
     def __init__(self):
         self.client_session = aiohttp.ClientSession()
 
-    async def request(self, subreddit, post_filter=None, count=30):
+    async def request(
+        self,
+        subreddit: str,
+        post_filter: Optional[str] = None,
+        count: int = 30
+    ) -> RedditPost:
         if post_filter is None:
             post_filter = ''
-        url = '%s/r/%s/%s/.json' % (self.BASE_URL, subreddit, post_filter)
+        url = f'{self.BASE_URL}/r/{subreddit}/{post_filter}.json'
 
         resp = await self.client_session.request(
             'GET', url, params={'count': count}
@@ -74,56 +81,21 @@ class RedditClient:
         await self.client_session.close()
 
 
-@commands.command
-async def reddit(message, subreddit, post_filter='new'):
-    if subreddit.startswith('r/'):
-        subreddit = subreddit[2:]
-
-    client = RedditClient()
-    try:
-        data = await client.request(subreddit, post_filter)
-    except RedditClientError as e:
-        await message.channel.send(
-            'Sorry, that request failed `Status Code: %s`' % e.status_code
-        )
-        return
-    except aiohttp.ClientError:
-        await message.channel.send('Sorry, that request failed')
-        return
-    finally:
-        await client.close()
-
-    try:
-        post = random.choice(data['data']['children'])['data']
-    except (IndexError, KeyError):
-        await message.channel.send('Unable to parse that response')
-        return
-    post = RedditPost.unmarshal(post)
-
-    if post.over_18 and not message.channel.nsfw:
-        await message.channel.send(
-            'That post is NSFW silly... try in an NSFW channel'
-        )
-        return
-
+def form_embed(post: RedditPost) -> Embed:
     embed = Embed(
         title=post.title,
         color=constants.BLUE,
-        url='%s%s' % (RedditClient.BASE_URL, post.permalink),
+        url=RedditClient.BASE_URL + post.permalink,
         description=post.selftext
     )
     embed.set_author(name=post.author)
     embed.description = (
-        ':arrow_up: :arrow_down: **%s** '
-        '(%s%%)\n'
-        '**edited**: %s\n'
-        '**nsfw**: %s\n'
-        ':trophy: **%s**\n'
-        ':speech_balloon: **%s**' % (
-            post.ups, post.upvote_ratio * 100,
-            str(post.edited).lower(), str(post.over_18).lower(),
-            post.total_awards_received, post.num_comments
-        )
+        f':arrow_up: :arrow_down: **{post.ups}** '
+        f'({post.upvote_ratio}%)\n'
+        f'**edited**: {str(bool(post.edited)).lower()}\n'
+        f'**nsfw**: {str(post.over_18).lower()}\n'
+        f':trophy: **{post.total_awards_received}**\n'
+        f':speech_balloon: **{post.num_comments}**'
     )
 
     if post.post_hint == 'image':
@@ -137,4 +109,41 @@ async def reddit(message, subreddit, post_filter='new'):
         trunc = post.selftext[:min((len(post.selftext), 1000))]
         embed.description += '\n\n' + trunc + '...'
 
-    await message.channel.send(embed=embed)
+    return embed
+
+
+@commands.command
+async def reddit(
+    message: Message,
+    subreddit: str,
+    post_filter: str = 'new'
+) -> None:
+    if subreddit.startswith('r/'):
+        subreddit = subreddit[2:]
+
+    client = RedditClient()
+    try:
+        data = await client.request(subreddit, post_filter)
+    except RedditClientError as e:
+        raise command.CommandError(
+            f'Sorry, that request failed `Status Code: {e.status_code}`',
+            message
+        )
+    except aiohttp.ClientError:
+        raise command.CommandError('Sorry, that request failed', message)
+    finally:
+        await client.close()
+
+    try:
+        post = random.choice(data['data']['children'])['data']
+    except (IndexError, KeyError):
+        raise commands.CommandError('Unable to parse that response', message)
+    post = RedditPost.unmarshal(post)
+
+    if post.over_18 and not message.channel.nsfw:
+        raise command.CommandError(
+            'That post is NSFW silly... try in an NSFW channel',
+            message
+        )
+
+    await message.channel.send(embed=form_embed(post))
