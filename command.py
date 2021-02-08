@@ -22,6 +22,20 @@ class Command:
         self.name = name or func.__name__
         self.aliases = []
         self.func = func
+        self.help_func = None
+        self.__doc__ = None
+        self.__invocation__ = None
+
+    def help(self, func):
+        self.help_func = func
+
+    async def send_help(self, message: Message):
+        if self.help_func is None:
+            raise CommandError(
+                'This command has no help message',
+                message
+            )
+        await self.help_func(message)
 
     async def call(self, *args):
         try:
@@ -95,3 +109,17 @@ class CommandTable:
             return None
 
         return await command.call(message, *args)
+
+
+def doc(doc):
+    def wrapped(cmd):
+        cmd.__doc__ = doc
+        return cmd
+    return wrapped
+
+
+def invocation(doc):
+    def wrapped(cmd):
+        cmd.__invocation__ = doc
+        return cmd
+    return wrapped

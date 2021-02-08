@@ -3,12 +3,16 @@ import gc
 import asyncio
 import threading
 import constants
+import command
 from snakecord import Message, Embed
 
 commands = constants.commands
 ICON_URL = 'https://cdn.discordapp.com/icons/%s/%s.png'
 
 
+@command.doc(
+    'Sends this guild\'s shard id and the shard\'s websocket latency'
+)
 @commands.command
 async def ping(message: Message) -> None:
     shard = message.guild.shard
@@ -23,6 +27,9 @@ async def ping(message: Message) -> None:
     await message.channel.send(embed=embed)
 
 
+@command.doc(
+    'Sends info about the bot\'s Python process'
+)
 @commands.command
 async def info(message: Message) -> None:
     threads = threading.active_count()

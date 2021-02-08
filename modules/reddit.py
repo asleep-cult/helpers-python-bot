@@ -112,6 +112,12 @@ def form_embed(post: RedditPost) -> Embed:
     return embed
 
 
+@command.invocation(
+    f'{commands.prefix}reddit <subreddit> [post filter]'
+)
+@command.doc(
+    'Sends a post from the subreddit'
+)
 @commands.command
 async def reddit(
     message: Message,

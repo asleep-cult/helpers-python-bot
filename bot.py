@@ -5,6 +5,7 @@ import importlib
 client = snakecord.Client()
 importlib.import_module('modules.info')
 importlib.import_module('modules.reddit')
+importlib.import_module('modules.help')
 
 
 @client.on
