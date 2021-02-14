@@ -3,10 +3,11 @@ import command
 from typing import List, Tuple, Optional
 from snakecord import Message, Embed
 
-commands = constants.commands
+commands = constants.loader.get_global('commands')
+client = constants.loader.get_global('client')
 
 
-def get_docs() -> List[Tuple[str, str]]:
+def get_docs() -> List[Tuple[str]]:
     cmds = []
     for name, cmd in commands.commands.items():
         invocation = cmd.__invocation__

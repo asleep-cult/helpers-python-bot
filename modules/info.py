@@ -6,7 +6,8 @@ import constants
 import command
 from snakecord import Message, Embed
 
-commands = constants.commands
+commands = constants.loader.get_global('commands')
+client = constants.loader.get_global('client')
 ICON_URL = 'https://cdn.discordapp.com/icons/%s/%s.png'
 
 

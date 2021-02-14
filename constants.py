@@ -1,7 +1,8 @@
 import json
-from command import CommandTable
+from command import CommandTable, ModuleLoader
 
-commands = CommandTable('>')
+loader = ModuleLoader()
+loader.set_global('commands', CommandTable('>'))
 
 BLUE = 0x6adde6
 

@@ -1,12 +1,13 @@
 import aiohttp
-import constants
 import command
 import random
+import constants
 from typing import Optional
 from snakecord import Message, Embed
 from snakecord.utils import JsonStructure, JsonField
 
-commands = constants.commands
+commands = constants.loader.get_global('commands')
+client = constants.loader.get_global('client')
 
 
 class RedditPost(JsonStructure):

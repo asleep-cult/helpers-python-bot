@@ -1,3 +1,4 @@
+import importlib
 from snakecord import Message, Embed
 
 
@@ -123,3 +124,37 @@ def invocation(doc):
         cmd.__invocation__ = doc
         return cmd
     return wrapped
+
+
+class _Module:
+    def __init__(self, path):
+        self.path = path
+        self.loaded = False
+
+    def _import(self):
+        importlib.import_module(self.path)
+        self.loaded = True
+
+
+class ModuleLoader:
+    def __init__(self):
+        self.globals = {}
+        self.modules = {}
+
+    def set_global(self, name, value):
+        self.globals[name] = value
+
+    def get_global(self, name):
+        return self.globals[name]
+
+    def add_module(self, path):
+        mod = _Module(path)
+        self.modules[path] = mod
+        return mod
+
+    def remove_module(self, path):
+        self.modules.pop(path)
+
+    def load(self):
+        for module in self.modules.values():
+            module._import()
