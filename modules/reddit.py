@@ -92,7 +92,7 @@ def form_embed(post: RedditPost) -> Embed:
     embed.set_author(name=post.author)
     embed.description = (
         f':arrow_up: :arrow_down: **{post.ups}** '
-        f'({post.upvote_ratio}%)\n'
+        f'({post.upvote_ratio * 100}%)\n'
         f'**edited**: {str(bool(post.edited)).lower()}\n'
         f'**nsfw**: {str(post.over_18).lower()}\n'
         f':trophy: **{post.total_awards_received}**\n'

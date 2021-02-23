@@ -4,6 +4,8 @@ import asyncio
 import threading
 import constants
 import command
+import utils
+from datetime import datetime
 from snakecord import Message, Embed
 
 commands = constants.loader.get_global('commands')
@@ -36,6 +38,7 @@ async def info(message: Message) -> None:
     threads = threading.active_count()
     tasks = asyncio.all_tasks()
     collected = sum(gen['collected'] for gen in gc.get_stats())
+    delta = datetime.now() - client.started_at
     embed = Embed(
         title='Info',
         description=(
@@ -43,7 +46,16 @@ async def info(message: Message) -> None:
             f'**Active Threads**: {threads}\n'
             f'**Asyncio Tasks**: {len(tasks)}\n'
             f'**Garbage Collected Objects**: {collected}\n'
+            f'**Started**: {utils.humanize(delta)}'
         ),
         color=constants.BLUE
     )
     await message.channel.send(embed=embed)
+
+
+@command.doc(
+    'Sends the bot\'s github repository'
+)
+@commands.command
+async def source(message: Message) -> None:
+    await message.channel.send(constants.REPOSITORY)
