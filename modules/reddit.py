@@ -3,33 +3,34 @@ import command
 import random
 import constants
 from typing import Optional
-from snakecord import Message, Embed
-from snakecord.utils import JsonStructure, JsonField
+from snekcord import Message, EmbedBuilder
+from snekcord.clients.wsevents import MessageCreateEvent
+from snekcord.utils import JsonField, JsonObject, JsonTemplate
 
 commands = constants.loader.get_global('commands')
 client = constants.loader.get_global('client')
 
 
-class RedditPost(JsonStructure):
-    __json_fields__ = {
-        'subreddit': JsonField('subreddit'),
-        'selftext': JsonField('selftext'),
-        'author': JsonField('author'),
-        'title': JsonField('title'),
-        'subreddit_name_prefixed': JsonField('subreddit_name_prefixed'),
-        'downs': JsonField('downs'),
-        'ups': JsonField('ups'),
-        'upvote_ratio': JsonField('upvote_ratio'),
-        'total_awards_received': JsonField('total_awards_received'),
-        'over_18': JsonField('over_18'),
-        'thumbnail': JsonField('thumbnail'),
-        'edited': JsonField('edited'),
-        'post_hint': JsonField('post_hint'),
-        'permalink': JsonField('permalink'),
-        'url': JsonField('url'),
-        'num_comments': JsonField('num_comments')
-    }
+RedditPostTemplate = JsonTemplate(
+    subreddit=JsonField('subreddit'),
+    selftext=JsonField('selftext'),
+    author=JsonField('author'),
+    title=JsonField('title'),
+    subreddit_name_prefixed=JsonField('subreddit_name_prefixed'),
+    downs=JsonField('downs'),
+    ups=JsonField('ups'),
+    upvote_ratio=JsonField('upvote_ratio'),
+    total_awards_received=JsonField('total_awards_received'),
+    over_18=JsonField('over_18'),
+    thumbnail=JsonField('thumbnail'),
+    edited=JsonField('edited'),
+    post_hint=JsonField('post_hint'),
+    permalink=JsonField('permalink'),
+    url=JsonField('url'),
+    num_comments=JsonField('num_comments')
+)
 
+class RedditPost(JsonObject, template=RedditPostTemplate):
     subreddit: str
     selftext: str
     author_fullname: str
@@ -82,15 +83,15 @@ class RedditClient:
         await self.client_session.close()
 
 
-def form_embed(post: RedditPost) -> Embed:
-    embed = Embed(
+def form_embed(post: RedditPost) -> EmbedBuilder:
+    builder = EmbedBuilder(
         title=post.title,
         color=constants.BLUE,
         url=RedditClient.BASE_URL + post.permalink,
         description=post.selftext
     )
-    embed.set_author(name=post.author)
-    embed.description = (
+    builder.set_author(name=post.author)
+    builder.set_description(
         f':arrow_up: :arrow_down: **{post.ups}** '
         f'({post.upvote_ratio * 100}%)\n'
         f'**edited**: {str(bool(post.edited)).lower()}\n'
@@ -100,17 +101,17 @@ def form_embed(post: RedditPost) -> Embed:
     )
 
     if post.post_hint == 'image':
-        embed.set_image(url=post.url)
+        builder.set_image(url=post.url)
     elif post.thumbnail is not None and post.thumbnail.startswith('http'):
-        embed.set_image(url=post.thumbnail)
+        builder.set_image(url=post.thumbnail)
     if post.post_hint in ('link', 'rich:video'):
         trunc = post.url[:40]
-        embed.description += '\n\n**[%s...](%s)**' % (trunc, post.url)
+        builder.embed.description += '\n\n**[%s...](%s)**' % (trunc, post.url)
     elif post.post_hint in (None, 'self'):
         trunc = post.selftext[:min((len(post.selftext), 1000))]
-        embed.description += '\n\n' + trunc + '...'
+        builder.embed.description += '\n\n' + trunc + '...'
 
-    return embed
+    return builder
 
 
 @command.invocation(
@@ -121,7 +122,7 @@ def form_embed(post: RedditPost) -> Embed:
 )
 @commands.command
 async def reddit(
-    message: Message,
+    evt: MessageCreateEvent,
     subreddit: str,
     post_filter: str = 'new'
 ) -> None:
@@ -134,23 +135,23 @@ async def reddit(
     except RedditClientError as e:
         raise command.CommandError(
             f'Sorry, that request failed `Status Code: {e.status_code}`',
-            message
+            evt.message
         )
     except aiohttp.ClientError:
-        raise command.CommandError('Sorry, that request failed', message)
+        raise command.CommandError('Sorry, that request failed', evt.message)
     finally:
         await client.close()
 
     try:
         post = random.choice(data['data']['children'])['data']
     except (IndexError, KeyError):
-        raise commands.CommandError('Unable to parse that response', message)
+        raise commands.CommandError('Unable to parse that response', evt.message)
     post = RedditPost.unmarshal(post)
 
-    if post.over_18 and not message.channel.nsfw:
+    if post.over_18 and not evt.message.channel.nsfw:
         raise command.CommandError(
             'That post is NSFW silly... try in an NSFW channel',
-            message
+            evt.message
         )
 
-    await message.channel.send(embed=form_embed(post))
+    await form_embed(post).send_to(evt.channel)

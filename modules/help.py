@@ -1,7 +1,7 @@
 import constants
 import command
 from typing import List, Tuple, Optional
-from snakecord import Message, Embed
+from snekcord import Message, EmbedBuilder
 
 commands = constants.loader.get_global('commands')
 client = constants.loader.get_global('client')
@@ -41,10 +41,10 @@ async def help(message: Message, cmd: Optional[str] = None) -> None:
     if cmd is not None:
         return await send_help(message, cmd)
 
-    embed = Embed(title='Help', color=constants.BLUE)
+    embed = EmbedBuilder(title='Help', color=constants.BLUE)
     embed.set_footer(f'Type {commands.prefix}help <command>')
 
     for invocation, docs in get_docs():
         embed.add_field(invocation, docs)
 
-    await message.channel.send(embed=embed)
+    await embed.send_to(message.channel)

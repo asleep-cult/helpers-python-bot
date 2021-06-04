@@ -1,11 +1,11 @@
-import snakecord
+import snekcord
 import constants
 from datetime import datetime
 
 
-class Client(snakecord.Client):
+class Client(snekcord.WebSocketClient):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(token='Bot ' + constants.SETUP['TOKEN'], *args, **kwargs)
 
         self.started_at = None
         constants.loader.set_global('client', self)
@@ -14,17 +14,18 @@ class Client(snakecord.Client):
         constants.loader.add_module('modules.help')
         constants.loader.load()
 
-    def start(self):
+    def run_forever(self):
         self.started_at = datetime.now()
-        super().start(constants.SETUP['TOKEN'])
+        super().run_forever()
 
 
 client = Client()
 
 
-@client.on
-async def message_create(message):
+@client.on()
+async def message_create(evt):
     commands = constants.loader.get_global('commands')
-    await commands.handle(message)
+    await commands.handle(evt)
 
-client.start()
+
+client.run_forever()

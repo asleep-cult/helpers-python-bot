@@ -6,7 +6,8 @@ import constants
 import command
 import utils
 from datetime import datetime
-from snakecord import Message, Embed
+from snekcord import EmbedBuilder
+from snekcord.clients.wsevents import MessageCreateEvent
 
 commands = constants.loader.get_global('commands')
 client = constants.loader.get_global('client')
@@ -17,29 +18,29 @@ ICON_URL = 'https://cdn.discordapp.com/icons/%s/%s.png'
     'Sends this guild\'s shard id and the shard\'s websocket latency'
 )
 @commands.command
-async def ping(message: Message) -> None:
-    shard = message.guild.shard
-    embed = Embed(
+async def ping(evt: MessageCreateEvent) -> None:
+    shard = evt.shard
+    embed = EmbedBuilder(
         title=':ping_pong: Ping',
         description=(
             f'**Shard {shard.id}**\n'
-            f'Websocket Latency: {(shard.websocket.latency * 1000):.2f}ms'
+            f'Websocket Latency: {(shard.latency * 1000):.2f}ms'
         ),
         color=constants.BLUE
     )
-    await message.channel.send(embed=embed)
+    await embed.send_to(evt.channel)
 
 
 @command.doc(
     'Sends info about the bot\'s Python process'
 )
 @commands.command
-async def info(message: Message) -> None:
+async def info(evt: MessageCreateEvent) -> None:
     threads = threading.active_count()
     tasks = asyncio.all_tasks()
     collected = sum(gen['collected'] for gen in gc.get_stats())
     delta = datetime.now() - client.started_at
-    embed = Embed(
+    embed = EmbedBuilder(
         title='Info',
         description=(
             f'**Process ID**: {os.getpid()}\n'
@@ -50,12 +51,12 @@ async def info(message: Message) -> None:
         ),
         color=constants.BLUE
     )
-    await message.channel.send(embed=embed)
+    await embed.send_to(evt.channel)
 
 
 @command.doc(
     'Sends the bot\'s github repository'
 )
 @commands.command
-async def source(message: Message) -> None:
-    await message.channel.send(constants.REPOSITORY)
+async def source(evt: MessageCreateEvent) -> None:
+    await evt.channel.messages.create(content=constants.REPOSITORY)
