@@ -1,5 +1,5 @@
 import importlib
-from snakecord import Message, Embed
+from snekcord import Message, EmbedBuilder
 
 
 class CommandError(Exception):
@@ -14,8 +14,8 @@ class CommandError(Exception):
         self.should_send = should_send
 
     async def send(self):
-        embed = Embed(title='**Error**', description=self.msg)
-        await self.message.channel.send(embed=embed)
+        embed = EmbedBuilder(title='**Error**', description=self.msg)
+        await embed.send_to(self.message.channel)
 
 
 class Command:
@@ -91,15 +91,15 @@ class CommandTable:
 
         return self._check_prefix(message.content, prefix)
 
-    async def handle(self, message):
-        if message.author.user.bot:
+    async def handle(self, evt):
+        if evt.message.author.bot:
             return
 
-        prefix = self.check_prefix(message)
+        prefix = self.check_prefix(evt.message)
         if prefix is None:
             return None
 
-        args = message.content[len(prefix):].split(self.sep)
+        args = evt.message.content[len(prefix):].split(self.sep)
         name = args.pop(0)
 
         if self.ignore_case:
@@ -109,7 +109,7 @@ class CommandTable:
         if command is None:
             return None
 
-        return await command.call(message, *args)
+        return await command.call(evt, *args)
 
 
 def doc(doc):
