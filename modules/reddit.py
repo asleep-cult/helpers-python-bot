@@ -91,7 +91,7 @@ def form_embed(post: RedditPost) -> EmbedBuilder:
         description=post.selftext
     )
     builder.set_author(name=post.author)
-    builder.embed.description = (
+    builder.set_description(
         f':arrow_up: :arrow_down: **{post.ups}** '
         f'({post.upvote_ratio * 100}%)\n'
         f'**edited**: {str(bool(post.edited)).lower()}\n'
